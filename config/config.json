@@ -1,0 +1,10 @@
+{
+    "token": "here is a token",
+    "prefix": "i!",
+    "mongoUrl": "here goes the mongo url",
+    "owners": [
+        "OWNER ID: 1",
+       "OWNER ID: 2"]
+
+
+}
