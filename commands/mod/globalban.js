@@ -7,8 +7,7 @@ const {
 } = require('discord.js');
 const ms = require('ms');
 const fs = require('fs');
-let RandomeId = "BanMembers"
-const DB = require("../../model/banmember");
+const Model = require('../../model/channel');
 module.exports = {
     name: 'globalban',
     aliases: [''],
@@ -38,46 +37,58 @@ module.exports = {
         if (reason.length < 15) return message.channel.send('Reason must be at least 15 characters long!');
         if (!reason) return message.channel.send('plse provide a reason!');
 
-        client.guilds.cache.forEach(guild => {
-            if (guild.id == message.guild.id) return;
-            if (guild.channels.cache.find(channel => channel.name === 'global-ban-requests')) {
-                const embedforall = new MessageEmbed()
-                    .setTitle('Global Ban')
-                    .setDescription(`Hello Owner and Server Moderators,\n\n**${message.author.username}** from Server *${message.guild.name}* requested to ban **${BanMember.user.tag}** from all the server!\n\nReason: ${reason}\n\nDo you want to ban this user from your Server too?\n\n You have 1h to respond or your vote is no!`)
-                    .addField('ServerInfo', `Server: **${message.guild.name}**\nOwner: **<@${message.guild.ownerId}>**\nID: **${message.guild.id}**\nMembers: **${message.guild.memberCount}**`)
-                    .addField('Target Info', `User: **${BanMember.user.tag}**\nID: **${BanMember.id}**\nDiscord Since: **${BanMember.user.createdAt.toLocaleString()}**\nIn Your Server Since: **${BanMember.joinedAt.toLocaleString()}**`, true)
-                    .addField('Moderator', `User: **${message.author.tag}**\nID: **${message.author.id}**\nDiscord Since: **${message.author.createdAt.toLocaleString()}**\nHeigest Role in the Server *${message.guild.name}*: **${message.member.roles.highest.name}**`, true)
-                    .setColor('#0097ff')
-                    .setTimestamp()
-                    .setFooter(`Requested by ${message.author.username}|| **DONT DELETE THIS EMBED/MESSAGE!**`);
-                const yesButton2 = new MessageButton()
-                    .setCustomId('yes_ban_all')
-                    .setEmoji('<a:yes_emil:927126087593504798>')
-                    .setLabel('YES')
-                    .setStyle('SUCCESS')
-                //enter the userid in the database
-                client.banmembers.set('BanMembers', BanMember.id, 'banMember')
-                //enter the userid in the database
-                const nobutton2 = new MessageButton()
-                    .setCustomId('no_ban_all')
-                    .setEmoji('<:no:927126358163861504> ')
-                    .setLabel('NO')
-                    .setStyle('DANGER')
+        client.guilds.cache.forEach(async (guild) => {
+            const embedforall = new MessageEmbed()
+                .setTitle('Global Ban')
+                .setDescription(`Hello Owner and Server Moderators,\n\n**${message.author.username}** from Server *${message.guild.name}* requested to ban **${BanMember.user.tag}** from all the server!\n\nReason: ${reason}\n\nDo you want to ban this user from your Server too?\n\n You have 1h to respond or your vote is no!`)
+                .addField('ServerInfo', `Server: **${message.guild.name}**\nOwner: **<@${message.guild.ownerId}>**\nID: **${message.guild.id}**\nMembers: **${message.guild.memberCount}**`)
+                .addField('Target Info', `User: **${BanMember.user.tag}**\nID: **${BanMember.id}**\nDiscord Since: **${BanMember.user.createdAt.toLocaleString()}**\nIn Your Server Since: **${BanMember.joinedAt.toLocaleString()}**`, true)
+                .addField('Moderator', `User: **${message.author.tag}**\nID: **${message.author.id}**\nDiscord Since: **${message.author.createdAt.toLocaleString()}**\nHeigest Role in the Server *${message.guild.name}*: **${message.member.roles.highest.name}**`, true)
+                .setColor('#0097ff')
+                .setTimestamp()
+                .setFooter(`Requested by ${message.author.username}|| **DONT DELETE THIS EMBED/MESSAGE!**`);
+            const yesButton2 = new MessageButton()
+                .setCustomId('yes_ban_all')
+                .setEmoji('<a:yes_emil:927126087593504798>')
+                .setLabel('YES')
+                .setStyle('SUCCESS')
+            //enter the userid in the database
+            client.banmembers.set('BanMembers', BanMember.id, 'banMember')
+            //enter the userid in the database
+            const nobutton2 = new MessageButton()
+                .setCustomId('no_ban_all')
+                .setEmoji('<:no:927126358163861504> ')
+                .setLabel('NO')
+                .setStyle('DANGER')
 
-                const row = new MessageActionRow()
-                    .addComponents(yesButton2, nobutton2)
-                guild.channels.cache.find(channel => channel.name === 'global-ban-requests').send({
-                    embeds: [embedforall],
-                    components: [row],
-                });
-                setTimeout(() => {
-                    guild.channels.cache.find(channel => channel.name === 'global-ban-requests').messages.fetch({
-                        limit: 1
-                    }).then(messages => {
-                        messages.first().delete();
+            const row = new MessageActionRow()
+                .addComponents(yesButton2, nobutton2)
+            if (guild.id == message.guild.id) return;
+            try {
+                const b = await Model.findOne({
+                    guildId: guild.id
+                })
+                if (b) {
+                    const otherSr = client.guilds.cache.get(guild.id)
+                    const otherCh = otherSr.channels.cache.get(b.channelId)
+                    otherCh.send({
+                        embeds: [embedforall],
+                        components: [row]
                     })
-                }, ms('1h'));
+                }
+            } catch (error) {
+                console.log(error)
+                message.channel.send({
+                    content: `An error occured!\n${error}Pls send this to the developer!`,
+                })
             }
+            // setTimeout(() => {
+            //     guild.channels.cache.find(channel => channel.name === 'global-ban-requests').messages.fetch({
+            //         limit: 1
+            //     }).then(messages => {
+            //         messages.first().delete();
+            //     })
+            // }, ms('1h'));
         })
 
 

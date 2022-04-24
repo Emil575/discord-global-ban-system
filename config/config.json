@@ -1,6 +1,6 @@
 {
     "token": "here is a token",
-    "prefix": "i!",
+    "prefix": "-",
     "mongoUrl": "here goes the mongo url",
     "owners": [
         "OWNER ID: 1",

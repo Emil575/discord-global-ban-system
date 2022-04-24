@@ -1,136 +1,25 @@
-const {
-    emoji
-} = require("../../config.json");
-const {
-    dbQuery,
-    dbModify
-} = require("../../utils/db");
-const {
-    string
-} = require("../../utils/strings");
-const {
-    confirmation
-} = require("../../utils/actions");
-module.exports = {
-    controls: {
-        name: "autosetup",
-        permission: 2,
-        aliases: ["autoconfig"],
-        usage: "autosetup",
-        description: "Automatically sets up channels and configures the bot",
-        enabled: true,
-        permissions: ["VIEW_CHANNEL", "SEND_MESSAGES", "EMBED_LINKS", "USE_EXTERNAL_EMOJIS", "MANAGE_CHANNELS"],
-        cooldown: 60,
-        docs: "admin/autosetup"
-    },
-    do: async (locale, message, client, args, Discord) => {
-        if ((
-                await confirmation(
-                    message,
-                    string(locale, "AUTOSETUP_WARNING", {
-                        check: `<:${emoji.check}>`,
-                        x: `<:${emoji.x}>`
-                    }), {
-                        denyMessage: string(locale, "SETUP_CANCELLED", {}, "error"),
-                        confirmMessage: string(locale, "PROCESSING"),
-                        keepReactions: false
-                    }
-                )
-            )) {
-            //Start auto setup
-            let qServerDB = await dbQuery("Server", {
-                id: message.guild.id
-            });
-            const guildLocale = qServerDB.config.locale || "en";
+            const embedforall = new MessageEmbed()
+                .setTitle('Global Ban')
+                .setDescription(`Hello Owner and Server Moderators,\n\n**${message.author.username}** from Server *${message.guild.name}* requested to ban **${BanMember.user.tag}** from all the server!\n\nReason: ${reason}\n\nDo you want to ban this user from your Server too?\n\n You have 1h to respond or your vote is no!`)
+                .addField('ServerInfo', `Server: **${message.guild.name}**\nOwner: **<@${message.guild.ownerId}>**\nID: **${message.guild.id}**\nMembers: **${message.guild.memberCount}**`)
+                .addField('Target Info', `User: **${BanMember.user.tag}**\nID: **${BanMember.id}**\nDiscord Since: **${BanMember.user.createdAt.toLocaleString()}**\nIn Your Server Since: **${BanMember.joinedAt.toLocaleString()}**`, true)
+                .addField('Moderator', `User: **${message.author.tag}**\nID: **${message.author.id}**\nDiscord Since: **${message.author.createdAt.toLocaleString()}**\nHeigest Role in the Server *${message.guild.name}*: **${message.member.roles.highest.name}**`, true)
+                .setColor('#0097ff')
+                .setTimestamp()
+                .setFooter(`Requested by ${message.author.username}|| **DONT DELETE THIS EMBED/MESSAGE!**`);
+            const yesButton2 = new MessageButton()
+                .setCustomId('yes_ban_all')
+                .setEmoji('<a:yes_emil:927126087593504798>')
+                .setLabel('YES')
+                .setStyle('SUCCESS')
+            //enter the userid in the database
+            client.banmembers.set('BanMembers', BanMember.id, 'banMember')
+            //enter the userid in the database
+            const nobutton2 = new MessageButton()
+                .setCustomId('no_ban_all')
+                .setEmoji('<:no:927126358163861504> ')
+                .setLabel('NO')
+                .setStyle('DANGER')
 
-            let roles = message.guild.roles.cache.filter(role => role.permissions.has("MANAGE_GUILD") && !role.managed).map(r => r.id);
-            let category = await message.guild.channels.create(string(guildLocale, "AUTOSETUP_CATEGORY") || "Suggester", {
-                type: "category",
-                reason: string(locale, "AUTOMATIC_SETUP")
-            });
-            let suggestions = await message.guild.channels.create(string(guildLocale, "AUTOSETUP_SUGGESTIONS") || "suggestions", {
-                type: "text",
-                reason: string(locale, "AUTOMATIC_SETUP"),
-                parent: category.id,
-                permissionOverwrites: [{
-                        id: client.user.id,
-                        allow: ["ADD_REACTIONS", "VIEW_CHANNEL", "SEND_MESSAGES", "MANAGE_MESSAGES", "EMBED_LINKS", "ATTACH_FILES", "READ_MESSAGE_HISTORY", "USE_EXTERNAL_EMOJIS"]
-                    },
-                    {
-                        id: message.guild.id,
-                        deny: ["ADD_REACTIONS", "SEND_MESSAGES"]
-                    }
-                ]
-            });
-            let denied = await message.guild.channels.create(string(guildLocale, "AUTOSETUP_DENIED") || "denied-suggestions", {
-                type: "text",
-                reason: string(locale, "AUTOMATIC_SETUP"),
-                parent: category.id,
-                permissionOverwrites: [{
-                        id: client.user.id,
-                        allow: ["VIEW_CHANNEL", "SEND_MESSAGES", "EMBED_LINKS", "ATTACH_FILES", "READ_MESSAGE_HISTORY", "USE_EXTERNAL_EMOJIS"]
-                    },
-                    {
-                        id: message.guild.id,
-                        deny: ["ADD_REACTIONS", "SEND_MESSAGES"]
-                    }
-                ]
-            });
-            let reviewPerms = [{
-                id: client.user.id,
-                allow: ["VIEW_CHANNEL", "SEND_MESSAGES", "MANAGE_MESSAGES", "EMBED_LINKS", "ATTACH_FILES", "READ_MESSAGE_HISTORY", "USE_EXTERNAL_EMOJIS"]
-            }, {
-                id: message.guild.id,
-                deny: ["VIEW_CHANNEL"]
-            }];
-            roles.forEach(r => reviewPerms.push({
-                id: r,
-                allow: ["VIEW_CHANNEL"]
-            }));
-            let review = await message.guild.channels.create(string(guildLocale, "AUTOSETUP_REVIEW") || "suggestion-review", {
-                type: "text",
-                reason: string(locale, "AUTOMATIC_SETUP"),
-                parent: category.id,
-                permissionOverwrites: reviewPerms
-            });
-            let logPerms = [{
-                id: client.user.id,
-                allow: ["VIEW_CHANNEL", "SEND_MESSAGES", "MANAGE_WEBHOOKS"]
-            }, {
-                id: message.guild.id,
-                deny: ["VIEW_CHANNEL"]
-            }];
-            roles.forEach(r => reviewPerms.push({
-                id: r,
-                allow: ["VIEW_CHANNEL"]
-            }));
-            let log = await message.guild.channels.create(string(guildLocale, "AUTOSETUP_LOG") || "suggestion-log", {
-                type: "text",
-                reason: string(locale, "AUTOMATIC_SETUP"),
-                parent: category.id,
-                permissionOverwrites: logPerms
-            });
-            let webhook = await log.createWebhook("Suggester Logs", {
-                avatar: client.user.displayAvatarURL({
-                    format: "png"
-                }),
-                reason: string(locale, "CREATE_LOG_CHANNEL")
-            });
-            qServerDB.config.loghook = {};
-            qServerDB.config.loghook.id = webhook.id;
-            qServerDB.config.loghook.token = webhook.token;
-            qServerDB.config.admin_roles = roles;
-            qServerDB.config.staff_roles = roles;
-            qServerDB.config.channels.suggestions = suggestions.id;
-            qServerDB.config.channels.staff = review.id;
-            qServerDB.config.channels.denied = denied.id;
-            qServerDB.config.channels.log = log.id;
-            await dbModify("Server", {
-                id: message.guild.id
-            }, qServerDB);
-            return message.channel.send(string(locale, "AUTOMATIC_SETUP_COMPLETE_NEW", {
-                prefix: Discord.escapeMarkdown(qServerDB.config.prefix)
-            }, "success"));
-        }
-    }
-};
+            const row = new MessageActionRow()
+                .addComponents(yesButton2, nobutton2)
